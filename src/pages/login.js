@@ -1,137 +1,155 @@
-import React, { Component } from "react"
-import withStyles from "@material-ui/core/styles/withStyles"
-import PropTypes from "prop-types"
+import React, { useState, useContext } from "react"
+import axios from "axios"
+import { makeStyles } from "@material-ui/core/styles"
+import UserContext from "../contexts/UserContext"
+import Logo from "../images/logo.png"
+
+// MUI stuff
 import Grid from "@material-ui/core/Grid"
 import Typography from "@material-ui/core/Typography"
 import TextField from "@material-ui/core/TextField"
 import Button from "@material-ui/core/Button"
-import axios from "axios"
-const styles = {
+import Link from "@material-ui/core/Link"
+import Box from "@material-ui/core/Box"
+import CircularProgress from "@material-ui/core/CircularProgress"
+
+// Components
+
+const useStyles = makeStyles(theme => ({
   form: {
-    textAlign: "center"
+    textAlign: "center",
+    width: "100%", // Fix IE 11 issue.
+    marginTop: theme.spacing(1),
+    position: "relative"
   },
-  image: {
-    margin: "20px auto 20px",
-    height: "20%"
+  logo: {
+    width: 100,
+    margin: "20px auto 20px auto"
   },
-  pageTItle: {
-    margin: `10px auto 1px auto`
+  paper: {
+    marginTop: theme.spacing(8),
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center"
   },
-  textField: {
-    margin: `10px auto 1px auto`
+  submit: {
+    margin: theme.spacing(3, 0, 2),
+    position: "relative"
   },
-  button: {
-    marginTop: 20
+  progress: {
+    position: "absolute"
   },
   customError: {
-    color: "red"
+    color: "red",
+    fontSize: "0.8rem",
+    width: "100%",
+    position: "absolute"
   }
+}))
+
+const INITIAL_STATE = {
+  email: "",
+  password: ""
 }
 
-export class login extends Component {
-  state = {
-    email: "",
-    password: "",
-    loading: false,
-    errors: {}
-  }
+const Login = ({ history }) => {
+  const classes = useStyles()
 
-  handleChange = event => {
-    this.setState({
-      [event.target.name]: event.target.value
-    })
-  }
+  const [formData, setFormData] = useState(INITIAL_STATE)
+  const [isloading, setIsLoading] = useState(false)
+  const [errors, setErrors] = useState({})
 
-  handleSubmit = event => {
-    event.preventDefault()
-    this.setState({
-      loading: true
-    })
-    const userData = {
-      email: this.state.email,
-      password: this.state.password
-    }
+  const { dispatch } = useContext(UserContext)
+
+  const isInvalid = !formData.email || !formData.password || isloading
+
+  const handleInputChange = field => e =>
+    setFormData({ ...formData, [field]: e.target.value })
+
+  const handleSubmit = e => {
+    e.preventDefault()
+    setIsLoading(true)
     axios
-      .post("/login", userData)
+      .post("/login", formData)
       .then(res => {
-        console.log(res.data)
-        this.setState({
-          loading: false
-        })
-        this.props.history.push("/")
+        console.log(res.data.token)
+        localStorage.setItem("FBIdToken", `Bearer ${res.data.token}`)
+        dispatch({ type: "LOGIN" })
+        setIsLoading(false)
+        history.push("/")
       })
       .catch(err => {
-        this.setState({
-          errors: err.response.data,
-          loading: false
-        })
+        setErrors(err.response.data)
+        console.log(err.response.data)
+        setIsLoading(false)
       })
   }
 
-  render() {
-    const { errors, loading } = this.state
-    const { classes } = this.props
-    return (
-      <Grid container className={classes.form}>
-        <Grid item sm />
-        <Grid item sm>
-          <img
-            src='https://leo.nyc3.digitaloceanspaces.com/jobtracker/favicon.ico'
-            alt='icon'
-            className={classes.image}
+  return (
+    <Grid container className={classes.form}>
+      <Grid item sm />
+      <Grid item sm>
+        <img src={Logo} alt='wyncode logo' className={classes.logo} />
+        <Typography variant='h2' className={classes.pageTitle}>
+          Login
+        </Typography>
+        <form noValidate onSubmit={handleSubmit}>
+          <TextField
+            variant='outlined'
+            margin='normal'
+            fullWidth
+            id='email'
+            type='email'
+            label='Email'
+            name='email'
+            autoComplete='email'
+            autoFocus={true}
+            helperText={errors.email}
+            error={errors.email ? true : false}
+            value={formData.email}
+            onChange={handleInputChange("email")}
           />
-          <Typography variant='h5' className={classes.pageTitle}>
+          <TextField
+            variant='outlined'
+            margin='normal'
+            fullWidth
+            id='password'
+            type='password'
+            label='Password'
+            name='password'
+            autoComplete='password'
+            helperText={errors.password}
+            error={errors.password ? true : false}
+            value={formData.password}
+            onChange={handleInputChange("password")}
+          />
+          {errors.general && (
+            <Typography variant='body2' className={classes.customError}>
+              {errors.general}
+            </Typography>
+          )}
+          <Button
+            type='submit'
+            fullWidth
+            variant='contained'
+            color='primary'
+            className={classes.submit}
+            disabled={isInvalid}
+          >
             Login
-          </Typography>
-          <form noValidate onSubmit={this.handleSubmit}>
-            <TextField
-              variant='outlined'
-              id='email'
-              name='email'
-              type='email'
-              label='Email'
-              className={classes.textField}
-              helperText={errors.email}
-              error={errors.email ? true : false}
-              value={this.state.email}
-              onChange={this.handleChange}
-              fullWidth
-            />
-            <TextField
-              variant='outlined'
-              id='password'
-              name='password'
-              type='password'
-              label='Password'
-              className={classes.textField}
-              error={errors.password ? true : false}
-              helperText={errors.password}
-              value={this.state.password}
-              onChange={this.handleChange}
-              fullWidth
-            />
-            {errors.general && (
-              <Typography variant='body2' className={classes.customError}>
-                {errors.general}
-              </Typography>
+            {isloading && (
+              <CircularProgress size={30} className={classes.progress} />
             )}
-            <Button
-              type='submit'
-              variant='contained'
-              colors='primary'
-              className={classes.button}
-            >
-              Submit
-            </Button>
-          </form>
-        </Grid>
-        <Grid item sm />
+          </Button>
+          <Link href='signup' variant='body2'>
+            Don't have an account? Sign Up
+          </Link>
+        </form>
+        <Box mt={8}></Box>
       </Grid>
-    )
-  }
-}
-login.propTypes = {
-  classes: PropTypes.object.isRequired
+      <Grid item sm />
+    </Grid>
+  )
 }
 
-export default withStyles(styles)(login)
+export default Login
